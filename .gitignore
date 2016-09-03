@@ -1,1 +1,7 @@
 target
+.idea*
+*.swp
+*.iml
+
+# Rom files
+roms
