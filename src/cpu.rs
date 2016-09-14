@@ -1,4 +1,6 @@
-use std::io;
+use instruction;
+use instruction::Instruction::*;
+use instruction::Instruction;
 use std::io::{BufWriter, Write};
 
 pub struct Cpu {
@@ -19,48 +21,76 @@ impl Cpu
             memory: [0; 4096],
             registers: [0; 16],
             i: 0,
-            pc: 0,
+            pc: 512,
             sp: 0,
             stack: [0; 16]
         }
     }
 
-    pub fn load_rom(&mut self, rom: Vec<u8>) -> Result<u32, io::Error>
-    {
+    pub fn load_rom(&mut self, rom: Vec<u8>) {
         {
             // TODO: Use constants
             let mut ram = BufWriter::new(&mut self.memory[0x200..4096]);
-            try!(ram.write_all(rom.as_ref()));
+            match ram.write_all(rom.as_ref()) {
+                Ok(x)   => x,
+                Err(_)  => error!("Internal Error!")
+            }
         }
 
         if rom.len() > 4096 - 0x200 {
             error!("ROM is too big!")
         }
 
-        let mut i = 0;
-        for byte in self.memory.iter() {
-            if i > 512 {
-                debug!("{:#08X}", byte);
-            }
-            i = i + 1;
-        }
-
-        return Ok(1);
     }
 
-    #[allow(dead_code)]
     pub fn dump(&self) {
-        println!("opcode: {}", self.opcode);
+        println!("opcode: {:#02X}", self.opcode);
+
         for i in 0..16 {
-            print!("V{}: {}", i, self.registers[i]);
+            print!("V{:x}: {}", i, self.registers[i]);
             if i != 15 {
                 print!(", ")
             }
         }
         println!("");
+
         println!("I: {}", self.i);
         println!("PC: {}", self.pc);
         println!("SP: {}", self.sp);
+
+        for i in 0..16 {
+            print!("S{:x}: {}", i, self.stack[i]);
+            if i != 15 {
+                print!(", ")
+            }
+        }
+        println!("")
     }
 
+    fn run_op(&mut self, instr: Instruction) {
+        match instr {
+            Add {reg, byte} => {
+                {
+                    let reg = &mut self.registers[reg as usize];
+                    *reg = reg.wrapping_add(byte);
+                }
+            },
+            Jmp {location}  => { self.pc = location },
+            Unknown         => ()
+        }
+    }
+
+    pub fn execute(&mut self) {
+        loop {
+            let pc = self.pc as usize;
+            if self.memory.len() <= pc {
+                break;
+            }
+            self.opcode = (self.memory[pc] as u16) << 8 | self.memory[pc + 1] as u16;
+            let instr = instruction::convert_op(self.opcode);
+            self.run_op(instr);
+            self.pc += 2;
+        }
+
+    }
 }

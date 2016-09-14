@@ -1,4 +1,5 @@
 mod cpu;
+mod instruction;
 use cpu::Cpu;
 
 #[macro_use]
@@ -22,14 +23,16 @@ fn read_rom(filename: &str, rom: &mut Vec<u8>) {
 
 fn main() {
     env_logger::init().unwrap();
-    println!("Hello, world!");
 
     let mut processor = Cpu::new();
 
-    processor.dump();
     let filename = "roms/PONG";
-    let mut rom = Vec::new();
+    {
+        let mut rom = Vec::new();
 
-    read_rom(filename, &mut rom);
-    processor.load_rom(rom);
+        read_rom(filename, &mut rom);
+        processor.load_rom(rom);
+    }
+
+    processor.execute();
 }
