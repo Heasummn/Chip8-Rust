@@ -69,11 +69,17 @@ impl Cpu
 
     fn run_op(&mut self, instr: Instruction) {
         match instr {
-            Add {reg, byte} => {
-                {
+            AddO {reg, byte} => {
                     let reg = &mut self.registers[reg as usize];
                     *reg = reg.wrapping_add(byte);
-                }
+            },
+            Add {regx, regy} => {
+                let x = self.registers[regx as usize] as u16;
+                let y = self.registers[regy as usize] as u16;
+                let result = x + y;
+                self.registers[0xF] = (result > 255) as u8;
+                // as u8 casts down to a byte to make sure we don't overflow
+                self.registers[regx as usize] = result as u8;
             },
             Jmp {location}  => { self.pc = location },
             Unknown         => ()
@@ -107,11 +113,20 @@ mod tests {
     }
 
     #[test]
+    fn test_addo() {
+        let mut processor = start();
+        processor.run_op(AddO {reg: 4, byte: 7 });
+        assert_eq!(processor.registers[4], 7);
+        processor.run_op(AddO {reg: 4, byte: 25});
+        assert_eq!(processor.registers[4], 32);
+    }
+
+    #[test]
     fn test_add() {
         let mut processor = start();
-        processor.run_op(Add {reg: 4, byte: 7 });
-        assert_eq!(processor.registers[4], 7);
-        processor.run_op(Add {reg: 4, byte: 25});
-        assert_eq!(processor.registers[4], 32);
+        processor.run_op(AddO {reg: 7, byte: 12}); // Set V7 to 12;
+        processor.run_op(Add {regx: 4, regy: 7}); // V4 += V7
+        assert_eq!(processor.registers[4], processor.registers[7]); // V4 == V7
+        assert_eq!(processor.registers[4], 12); // V4 == 12
     }
 }

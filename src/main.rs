@@ -10,7 +10,6 @@ fn read_rom(filename: &str, rom: &mut Vec<u8>) {
         Ok(data) => data,
         Err(_) => {
             panic!("Rom file {} not found.", filename);
-            std::process::exit(1)
         },
     };
 
