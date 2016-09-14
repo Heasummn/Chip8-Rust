@@ -1,10 +1,6 @@
-mod cpu;
-mod instruction;
-use cpu::Cpu;
+extern crate chip8_cpu;
 
-#[macro_use]
-extern crate log;
-extern crate env_logger;
+use chip8_cpu::cpu::Cpu;
 
 use std::io::Read;
 use std::fs::File;
@@ -13,7 +9,7 @@ fn read_rom(filename: &str, rom: &mut Vec<u8>) {
     let mut rom_data = match File::open(filename) {
         Ok(data) => data,
         Err(_) => {
-            error!("Rom file {} not found.", filename);
+            panic!("Rom file {} not found.", filename);
             std::process::exit(1)
         },
     };
@@ -22,8 +18,6 @@ fn read_rom(filename: &str, rom: &mut Vec<u8>) {
 }
 
 fn main() {
-    env_logger::init().unwrap();
-
     let mut processor = Cpu::new();
 
     let filename = "roms/PONG";

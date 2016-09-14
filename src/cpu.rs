@@ -33,12 +33,12 @@ impl Cpu
             let mut ram = BufWriter::new(&mut self.memory[0x200..4096]);
             match ram.write_all(rom.as_ref()) {
                 Ok(x)   => x,
-                Err(_)  => error!("Internal Error!")
+                Err(_)  => panic!("Internal Error!")
             }
         }
 
         if rom.len() > 4096 - 0x200 {
-            error!("ROM is too big!")
+            panic!("ROM is too big!")
         }
 
     }
@@ -92,5 +92,26 @@ impl Cpu
             self.pc += 2;
         }
 
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use cpu::Cpu;
+    use instruction::Instruction::*;
+
+    fn start() -> Cpu
+    {
+        Cpu::new()
+    }
+
+    #[test]
+    fn test_add() {
+        let mut processor = start();
+        processor.run_op(Add {reg: 4, byte: 7 });
+        assert_eq!(processor.registers[4], 7);
+        processor.run_op(Add {reg: 4, byte: 25});
+        assert_eq!(processor.registers[4], 32);
     }
 }
