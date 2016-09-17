@@ -73,6 +73,20 @@ impl Cpu
                     let reg = &mut self.registers[reg as usize];
                     *reg = reg.wrapping_add(byte);
             },
+            Load {regx, regy} => {
+                self.registers[regx as usize] = self.registers[regy as usize];
+            },
+            Or {regx, regy} => {
+                self.registers[regx as usize] |= self.registers[regy as usize];
+            }
+            And {regx, regy} => {
+                self.registers[regx as usize] &= self.registers[regy as usize];
+            }
+
+            Xor {regx, regy} => {
+                self.registers[regx as usize] ^= self.registers[regy as usize];
+            }
+
             Add {regx, regy} => {
                 let x = self.registers[regx as usize] as u16;
                 let y = self.registers[regy as usize] as u16;
@@ -109,7 +123,9 @@ mod tests {
 
     fn start() -> Cpu
     {
-        Cpu::new()
+        let mut cpu = Cpu::new();
+        cpu.run_op(AddO {reg: 1, byte: 20});
+        cpu
     }
 
     #[test]
@@ -128,5 +144,48 @@ mod tests {
         processor.run_op(Add {regx: 4, regy: 7}); // V4 += V7
         assert_eq!(processor.registers[4], processor.registers[7]); // V4 == V7
         assert_eq!(processor.registers[4], 12); // V4 == 12
+    }
+
+    #[test]
+    fn test_jmp() {
+        let mut processor = start();
+        processor.run_op(Jmp {location: 756});
+        assert_eq!(processor.pc, 756);
+    }
+
+    #[test]
+    fn test_ld() {
+        let mut processor = start();
+        processor.run_op(AddO {reg: 2, byte: 12});
+        processor.run_op(Load {regx: 1, regy: 2});
+        assert_eq!(processor.registers[1], processor.registers[2]);
+    }
+
+    #[test]
+    fn test_or() {
+        let mut processor = start();
+        processor.run_op(AddO {reg: 2, byte: 12});
+        // perform 20 | 12
+        processor.run_op(Or {regx: 2, regy: 1});
+        assert_eq!(processor.registers[2], 28);
+
+    }
+
+    #[test]
+    fn test_and() {
+        let mut processor = start();
+        processor.run_op(AddO {reg: 2, byte: 12});
+        // perform 20 & 12
+        processor.run_op(And {regx: 1, regy: 2});
+        assert_eq!(processor.registers[1], 0x4);
+    }
+
+    #[test]
+    fn test_xor() {
+        let mut processor = start();
+        processor.run_op(AddO {reg: 2, byte: 12});
+        // perform 20 ^ 12
+        processor.run_op(Xor {regx: 1, regy: 2});
+        assert_eq!(processor.registers[1], 24);
     }
 }
