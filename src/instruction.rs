@@ -33,6 +33,24 @@ pub enum Instruction {
     // V[x] <<= 1; VF = msb(V[x])
     Shl {reg: u8},
 
+    // If V[x] == V[y] -> pc += 2;
+    Sne {regx: u8, regy: u8},
+
+    // I = nnn
+    LdI {loc: u16},
+
+    // PC = V[0] + loc
+    JmpA {loc: u16},
+
+    // I += V[x]
+    AddI {reg: u8},
+
+    // I = V[x] * 5
+    LdF {reg: u8},
+
+    // mem[I] = V[x] / 100; mem[I + 1] = (V[x] / 10) % 10; mem[I + 2] = (V[x] % 100) % 10;
+    LdB {reg: u8},
+
     Unknown
 }
 
@@ -100,6 +118,40 @@ pub fn convert_op(op: u16) -> Instruction {
                 _       => Instruction::Unknown
             }
         }
+        // 0x9xy0
+        0x9     => {
+            let x = x(op);
+            let y = y(op);
+            Instruction::Sne {regx: x, regy: y}
+        },
+        // 0xAnnn
+        0xA     => {
+            let nnn = nnn(op);
+            Instruction::LdI{loc: nnn}
+        },
+        // 0xBnnn
+        0xB     => {
+            let nnn = nnn(op);
+            Instruction::JmpA {loc: nnn}
+        }
+
+        0xF     => {
+            let x = x(op);
+            match kk(op) {
+                // 0xFx1E
+                0x1E    => {
+                    Instruction::AddI {reg: x}
+                },
+                0x29        => {
+                    Instruction::LdF {reg: x}
+                },
+                0x33        => {
+                    Instruction::LdB {reg: x}
+                }
+                _       => Instruction::Unknown
+            }
+        }
+
         _       => Instruction::Unknown
     }
 }
@@ -126,5 +178,29 @@ mod tests {
         // All bin ops are handled the same way
         let instr = convert_op(0x8354);
         assert_eq!(instr, Add{regx: 0x3, regy: 0x5})
+    }
+
+    #[test]
+    fn test_conv_sne() {
+        let instr = convert_op(0x9260);
+        assert_eq!(instr, Sne {regx: 0x2, regy: 0x6});
+    }
+
+    #[test]
+    fn test_conv_ld_i() {
+        let instr = convert_op(0xA400);
+        assert_eq!(instr, LdI {loc: 0x400});
+    }
+
+    #[test]
+    fn test_conv_jmp_a() {
+        let instr = convert_op(0xB400);
+        assert_eq!(instr, JmpA {loc: 0x400});
+    }
+
+    #[test]
+    fn test_conv_fx() {
+        let instr = convert_op(0xF31E);
+        assert_eq!(instr, AddI {reg: 3})
     }
 }

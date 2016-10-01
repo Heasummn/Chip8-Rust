@@ -120,6 +120,24 @@ impl Cpu
                 let result = x << 1;
                 self.registers[0xF] = (x >> 7) as u8;
                 self.registers[reg as usize] = result as u8;
+            },
+            Sne {regx, regy} => {
+                let x = self.registers[regx as usize] as u16;
+                let y = self.registers[regy as usize] as u16;
+                if x != y {
+                    self.pc += 2;
+                }
+            },
+            LdI {loc}       => { self.i = loc },
+            JmpA {loc}      => { self.pc = self.registers[0] as u16 + loc},
+            AddI {reg}      => { self.i = self.i.wrapping_add(self.registers[reg as usize] as u16) },
+            LdF {reg}       => { self.i = (self.registers[reg as usize] as u16) * 5 },
+            LdB {reg}       => {
+                let i = self.i as usize;
+                let x = self.registers[reg as usize];
+                self.memory[i] = x.wrapping_div(100);
+                self.memory[i + 1] = (x.wrapping_div(10)) % 10;
+                self.memory[i + 2] = (x % 100) % 10;
             }
             Jmp {location}  => { self.pc = location },
             Unknown         => ()
@@ -152,6 +170,8 @@ mod tests {
         let mut cpu = Cpu::new();
         cpu.run_op(AddO {reg: 1, byte: 20 });
         cpu.run_op(AddO {reg: 7, byte: 12 });
+        cpu.i = 7;
+        cpu.registers[0] = 35;
         cpu
     }
 
@@ -203,6 +223,47 @@ mod tests {
         processor.run_op(Shl {reg: 1}); // V1 << 1
         assert_eq!(processor.registers[1], 40);
         assert_eq!(processor.registers[0xF], 0);
+    }
+
+    #[test]
+    fn test_sne() {
+        let mut processor = start();
+        let pc = processor.pc;
+        processor.run_op(Sne {regx: 1, regy: 1}); // Nothing
+        assert_eq!(processor.pc, pc);
+        processor.run_op(Sne {regx: 1, regy: 7}); // PC += 2
+        assert_eq!(processor.pc, pc + 2);
+    }
+
+    #[test]
+    fn test_ld_i() {
+        let mut processor = start();
+        processor.run_op(LdI {loc: 1024});
+        assert_eq!(processor.i, 1024)
+    }
+
+    #[test]
+    fn test_jmp_a() {
+        let mut processor = start();
+        processor.run_op(JmpA {loc: 1024});
+        assert_eq!(processor.pc, 1024 + processor.registers[0] as u16)
+    }
+
+    #[test]
+    fn test_ld_f() {
+        let mut processor = start();
+        processor.run_op(LdF {reg: 1});
+        assert_eq!(processor.i, 100);
+    }
+
+    #[test]
+    fn test_ld_b() {
+        let mut processor = start();
+        processor.run_op(LdB {reg: 7});
+        let i = processor.i as usize;
+        assert_eq!(processor.memory[i], 0); // 7 is loaded with 12, the first num of 12 is 0
+        assert_eq!(processor.memory[i + 1], 1);
+        assert_eq!(processor.memory[i + 2], 2);
     }
 
     #[test]
