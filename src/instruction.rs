@@ -18,8 +18,20 @@ pub enum Instruction {
     // V[x] &= V[y]
     And {regx: u8, regy: u8},
 
-    // V[x] += V[y]
+    // V[x] += V[y]; VF = carry
     Add {regx: u8, regy: u8},
+
+    // V[x] -= V[y]; VF = !borrow
+    Sub {regx: u8, regy: u8},
+
+    // V[x] >>= 1; VF = lsb(V[x])
+    Shr {reg: u8},
+
+    // V[x] = V[y] - V[x]; VF = !borrow
+    Subn {regx: u8, regy: u8},
+
+    // V[x] <<= 1; VF = msb(V[x])
+    Shl {reg: u8},
 
     Unknown
 }
@@ -76,6 +88,14 @@ pub fn convert_op(op: u16) -> Instruction {
                 0x3     => Instruction::Xor{regx: x, regy: y},
                 // 0x8xy4
                 0x4     => Instruction::Add {regx: x, regy: y},
+                // 0x8xy5
+                0x5     => Instruction::Sub {regx: x, regy: y},
+                // 0x8x_6
+                0x6     => Instruction::Shr {reg: x},
+                // 0x8xy7
+                0x7     => Instruction::Subn {regx: x, regy: y},
+                // 0x8x_E
+                0xE     => Instruction::Shl {reg: x},
 
                 _       => Instruction::Unknown
             }
