@@ -1,6 +1,8 @@
 extern crate chip8_cpu;
 
 use chip8_cpu::cpu::Cpu;
+use chip8_cpu::graphics::Graphics;
+use chip8_cpu::keyboard::Keyboard;
 
 use std::io::Read;
 use std::fs::File;
@@ -17,9 +19,14 @@ fn read_rom(filename: &str, rom: &mut Vec<u8>) {
 }
 
 fn main() {
+    // TODO: uncouple from main
+    let context = sdl2::init().unwrap();
+    let mut gfx = Graphics::new(&context);
+    let mut kb = Keyboard::new(&context);
+
     let mut processor = Cpu::new();
 
-    let filename = "roms/PONG";
+    let filename = "roms/BRIX";
     {
         let mut rom = Vec::new();
 
@@ -27,5 +34,18 @@ fn main() {
         processor.load_rom(rom);
     }
 
-    processor.execute();
+    loop {
+        let keys = kb.get_keys();
+        if keys.is_none() {
+            break;
+        }
+        let state = processor.step(keys.unwrap());
+        if state.finished {
+            break;
+        }
+        if state.drawn {
+            gfx.draw(&state.screen);
+        }
+        //processor.dump();
+    }
 }

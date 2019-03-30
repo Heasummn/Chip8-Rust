@@ -3,6 +3,14 @@ pub enum Instruction {
     // PC = location
     Jmp {location: u16},
 
+    // Call; pc = nnn, sp++
+    Call {location: u16},
+
+    Ret,
+
+    // Skip V[x] == V[y]
+    Se {x: u8, y: u8},
+
     // V[reg] += byte
     AddO {reg: u8, byte: u8},
 
@@ -33,7 +41,13 @@ pub enum Instruction {
     // V[x] <<= 1; VF = msb(V[x])
     Shl {reg: u8},
 
-    // If V[x] == V[y] -> pc += 2;
+    // If V[x] == byte -> pc += 2
+    ConstantSe {reg: u8, byte: u8},
+
+    // if V[x] != byte -> pc += 2
+    ConstantSne {reg: u8, byte: u8},
+
+    // If V[x] != V[y] -> pc += 2;
     Sne {regx: u8, regy: u8},
 
     // I = nnn
@@ -45,11 +59,39 @@ pub enum Instruction {
     // I += V[x]
     AddI {reg: u8},
 
-    // I = V[x] * 5
-    LdF {reg: u8},
-
     // mem[I] = V[x] / 100; mem[I + 1] = (V[x] / 10) % 10; mem[I + 2] = (V[x] % 100) % 10;
     LdB {reg: u8},
+
+    // I = sprite of V[x]
+    LdFont {reg: u8},
+
+    // V[0..X] = mem[I..I+x]
+    LdLong {reg: u8},
+
+    // mem[I..I+x] = V[0..x]
+    SetLong {reg: u8}, 
+
+    // V[x] = byte
+    Set {reg: u8, byte: u8},
+
+    // V[x] = delay
+    LdDelay {reg: u8},
+
+    // delay = V[x]
+    SetDelay {reg: u8},
+
+    // skip if key pressed
+    Skp {key: u8},
+
+    // skip if key not pressed
+    Sknp {key: u8},
+
+    // V[x] = rand & byte
+    Random {reg: u8, byte: u8},
+
+    // Draw I at x, y
+    Draw{x: u8, y: u8, n: u16},
+    Clear,
 
     Unknown
 }
@@ -85,8 +127,37 @@ fn nnn(op: u16) -> u16 {
 
 pub fn convert_op(op: u16) -> Instruction {
     match high(op) {
+
+        //0x00
+        0x0     => {
+            match low(op) {
+                0x0 => {
+                    Instruction::Clear
+                },
+                0xE => {
+                    Instruction::Ret
+                },
+                _ => {println!("{:x}", op); Instruction::Unknown}
+            }
+        }
+
         // 0x1nnn
         0x1     => Instruction::Jmp { location: nnn(op) },
+        
+        //0x2nnn
+        0x2     => Instruction::Call { location: nnn(op) },
+
+        // 0x3xkk
+        0x3     => Instruction::ConstantSe { reg: x(op), byte: kk(op) },
+
+        // 0x4xkk
+        0x4     => Instruction::ConstantSne { reg: x(op), byte: kk(op) },
+
+        // 0x5xy0
+        0x5     => Instruction::Se {x: x(op), y: y(op) },
+
+        // 0x6xkk  
+        0x6     => Instruction::Set { reg: x(op), byte: kk(op) },
 
         // 0x7xkk
         0x7     => Instruction::AddO { reg: x(op), byte: kk(op) },
@@ -115,7 +186,7 @@ pub fn convert_op(op: u16) -> Instruction {
                 // 0x8x_E
                 0xE     => Instruction::Shl {reg: x},
 
-                _       => Instruction::Unknown
+                _       => {println!("{:x}", op); Instruction::Unknown}
             }
         }
         // 0x9xy0
@@ -133,26 +204,64 @@ pub fn convert_op(op: u16) -> Instruction {
         0xB     => {
             let nnn = nnn(op);
             Instruction::JmpA {loc: nnn}
-        }
+        },
+
+        // 0xCxkk
+        0xC     => {
+            Instruction::Random {reg: x(op), byte: kk(op)}
+        },
+
+        // 0xDxyn
+        0xD     => {
+            let x = x(op);
+            let y = y(op);
+            let n = low(op);
+            Instruction::Draw {x, y, n}
+        },
+        0xE     => {
+            let x = x(op);
+            match kk(op) {
+                0x9E => {
+                    Instruction::Skp { key: x }
+                },
+                0xA1 => {
+                    Instruction::Sknp { key: x }
+                },
+                _ => {
+                    Instruction::Unknown
+                }
+            }
+        },
 
         0xF     => {
             let x = x(op);
             match kk(op) {
-                // 0xFx1E
-                0x1E    => {
+                0x07        => {
+                    Instruction::LdDelay {reg: x}
+                },
+                0x15        => {
+                    Instruction::SetDelay {reg: x}
+                },
+                0x1E        => {
                     Instruction::AddI {reg: x}
                 },
                 0x29        => {
-                    Instruction::LdF {reg: x}
-                },
+                    Instruction::LdFont {reg: x}
+                }
                 0x33        => {
                     Instruction::LdB {reg: x}
+                },
+                0x55        => {
+                    Instruction::SetLong {reg: x}
                 }
-                _       => Instruction::Unknown
+                0x65        => {
+                    Instruction::LdLong {reg: x}
+                }
+                _       => {println!("{:x}", op); Instruction::Unknown}
             }
         }
 
-        _       => Instruction::Unknown
+        _       => {println!("{:x}", op); return Instruction::Unknown}
     }
 }
 
